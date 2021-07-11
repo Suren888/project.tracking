@@ -79,6 +79,8 @@ public class ProjectController {
     @PostMapping("/create")
     public Project createProject(@RequestBody Project newProject){
         System.out.println("newProject = " + newProject);
+        HashSet<Contact> contacts = (HashSet) getPreparedContacts(newProject);
+        newProject.setContacts(contacts);
         return projectRepository.save(newProject);
     }
 
