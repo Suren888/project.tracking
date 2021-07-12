@@ -12,6 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
+import javax.validation.Validator;
 import java.util.*;
 
 //@CrossOrigin(origins = "http://localhost:4200")
@@ -58,10 +61,14 @@ public class ProjectController {
     }
 
     @PutMapping("/update/{id}")
-    public Project updateProject(@RequestBody Project newProject, @PathVariable("id") Long id) {
+    public ResponseEntity updateProject(@RequestBody Project newProject, @PathVariable("id") Long id) {
+        try{
+            validateProject(newProject);
+        }catch (final ConstraintViolationException e){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
         System.out.println("newProject = " + newProject + ", id = " + id);
         //Todo need to correct
-        //newProject.setStatus(statusRepository.findById(newProject.getStatus().getId()));
         HashSet<Contact> contacts = (HashSet) getPreparedContacts(newProject);
         newProject.setContacts(contacts);
         return projectRepository.findById(id)
@@ -69,19 +76,24 @@ public class ProjectController {
                 project.setTitle(newProject.getTitle());
                 project.setStatus(newProject.getStatus());
                 project.setContacts(newProject.getContacts());
-                return projectRepository.save(project);
+                return new ResponseEntity(projectRepository.save(project), HttpStatus.OK);
             }).orElseGet(() -> {
                 newProject.setId(id);
-                return projectRepository.save(newProject);
+                return new ResponseEntity(projectRepository.save(newProject), HttpStatus.OK);
             });
     }
 
     @PostMapping("/create")
-    public Project createProject(@RequestBody Project newProject){
+    public ResponseEntity createProject(@RequestBody Project newProject){
         System.out.println("newProject = " + newProject);
+        try{
+            validateProject(newProject);
+        }catch (final ConstraintViolationException e){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
         HashSet<Contact> contacts = (HashSet) getPreparedContacts(newProject);
         newProject.setContacts(contacts);
-        return projectRepository.save(newProject);
+        return new ResponseEntity<Project>(projectRepository.save(newProject), HttpStatus.OK);
     }
 
     private Set<Contact> getPreparedContacts(Project project){
@@ -105,5 +117,30 @@ public class ProjectController {
             }
         }
         return result;
+    }
+
+    @Autowired
+    private Validator validator;
+    private void validateProject(Project project){
+        Set<ConstraintViolation<Project>> violations = validator.validate(project);
+        if (!violations.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (ConstraintViolation<Project> constraintViolation : violations) {
+                sb.append(constraintViolation.getMessage());
+            }
+            Iterator<Contact> it = project.getContacts().iterator();
+            Contact cnt = null;
+            while(it.hasNext()){
+                cnt = it.next();
+                Set<ConstraintViolation<Contact>> violationsContact = validator.validate(cnt);
+                if (!violations.isEmpty()) {
+                    for (ConstraintViolation<Contact> constraintViolation : violationsContact) {
+                        sb.append(constraintViolation.getMessage());
+                    }
+                }
+            }
+            if(sb.length()>0)
+                throw new ConstraintViolationException("Error occurred: " + sb.toString(), violations);
+        }
     }
 }

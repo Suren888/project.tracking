@@ -3,6 +3,7 @@ package com.synergy.project.tracking.model;
 import com.sun.istack.NotNull;
 
 import javax.persistence.*;
+import javax.validation.constraints.NotBlank;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,9 +14,9 @@ public class Contact {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @NotNull
+    @NotBlank(message = "fullName must not be blank")
     private String fullName;
-    @NotNull
+    @NotBlank(message = "Email must not be blank")
     private String email;
     private String phone;
 
